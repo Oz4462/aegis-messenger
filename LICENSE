@@ -1,0 +1,27 @@
+AEGIS Messenger — Proprietary Software License
+Copyright (c) 2026 Ozan Küsmez <ozanks20@gmail.com>
+All rights reserved.
+
+AEGIS Messenger ("the Software") — including its source code, design, and assets —
+is the exclusive property of Ozan Küsmez ("the Owner").
+
+PERMITTED, free of charge:
+  - Viewing this repository and evaluating the Software for personal,
+    non-commercial study and assessment.
+
+NOT PERMITTED without a separate, written, PAID commercial license from the Owner:
+  - Running or deploying the Software in production or for any commercial purpose.
+  - Using it to provide a product or service to others.
+  - Copying, redistributing, sublicensing, or selling the Software or any derivative.
+  - Modifying the Software for distribution.
+
+In short: it belongs to the Owner. You may look at it. Anyone who wants to RUN or
+USE it (beyond private evaluation) must obtain a paid license.
+
+To obtain a commercial license — to run, deploy, sell, or build on AEGIS — contact:
+  Ozan Küsmez  <ozanks20@gmail.com>
+
+NO WARRANTY. The Software is provided "AS IS", without warranty of any kind.
+It is an UNAUDITED prototype and must not be relied upon for real high-risk
+communication until an independent security audit has been completed. The Owner
+is not liable for any damages arising from use of the Software.
