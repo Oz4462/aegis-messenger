@@ -1,6 +1,6 @@
 <div align="center">
 
-<img src="docs/ui/aegis-logo.svg" width="104" alt="AEGIS logo" />
+<img src="docs/ui/aegis-logo.svg" width="120" alt="AEGIS logo" />
 
 # AEGIS Messenger
 
@@ -8,47 +8,70 @@
 
 <p>
 <img src="https://img.shields.io/badge/status-working%20prototype-orange" alt="status" />
+<img src="https://img.shields.io/badge/2--device%20E2E-proven%20live-22C55E" alt="proven live" />
 <img src="https://img.shields.io/badge/encryption-end--to--end-4F46E5" alt="e2ee" />
 <img src="https://img.shields.io/badge/crypto-post--quantum-6D5DF6" alt="post-quantum" />
 <img src="https://img.shields.io/badge/FIPS-203%20%C2%B7%20204%20%C2%B7%20205-2BB6A3" alt="fips" />
-<img src="https://img.shields.io/badge/tests-81%20Rust%20%2B%2028%20Flutter-brightgreen" alt="tests" />
+</p>
+<p>
+<img src="https://img.shields.io/badge/tests-82%20Rust%20%2B%2028%20Flutter-brightgreen" alt="tests" />
+<img src="https://img.shields.io/badge/fuzz-250k%2B%20inputs%20%C2%B7%200%20panics-brightgreen" alt="fuzz" />
 <img src="https://img.shields.io/badge/Rust-000000?logo=rust&logoColor=white" alt="rust" />
 <img src="https://img.shields.io/badge/Flutter-02569B?logo=flutter&logoColor=white" alt="flutter" />
 <img src="https://img.shields.io/badge/platform-Android-3DDC84?logo=android&logoColor=white" alt="android" />
 <img src="https://img.shields.io/badge/license-proprietary-E5483D" alt="license" />
 </p>
 
+<b>No server, no operator, no man-in-the-middle can ever read your chats — not even a future quantum computer.</b>
+
 </div>
 
 > [!WARNING]
-> **AEGIS is a working prototype that has *not yet* had an independent crypto audit.** Everything below is real and tested, and the limits are stated honestly. Do not rely on it for genuine high-risk communication until an external audit is complete.
+> **AEGIS is a working prototype that has *not yet* had an independent crypto audit.** Everything below is real, built, and tested — and every limit is stated honestly. Do not rely on it for genuine high-risk communication until an external audit is complete.
+
+---
+
+## 📱 Two real phones. End-to-end. Post-quantum. Proven live.
+
+<div align="center">
+<table>
+<tr>
+<td align="center"><sub><b>Phone A · Xiaomi 15 Ultra</b></sub></td>
+<td align="center"><sub><b>Phone B · Samsung Z Flip5</b></sub></td>
+</tr>
+<tr>
+<td><img src="docs/ui/device-a.png" width="250" alt="AEGIS on phone A" /></td>
+<td><img src="docs/ui/device-b.png" width="250" alt="AEGIS on phone B" /></td>
+</tr>
+</table>
+<sub>The <b>same conversation</b> on two physical phones. Each message is encrypted on the sender → crosses the relay as an <b>opaque blob</b> → and is decrypted <b>only</b> on the recipient. Verified live, both directions.</sub>
+</div>
 
 ---
 
 ## Why AEGIS exists
 
-Most messengers protect *today's* messages against *today's* computers. The day a large quantum computer arrives, harvested ciphertext from years ago can be decrypted retroactively ("harvest-now, decrypt-later").
+Most messengers protect *today's* messages against *today's* computers. The day a large quantum computer arrives, ciphertext harvested years ago can be decrypted retroactively — **"harvest-now, decrypt-later."**
 
 **AEGIS is built for that day.** It is post-quantum on **both** axes — confidentiality *and* authenticity — and engineered so that **no server, no operator, and no man-in-the-middle can ever read your chats.** Even on a seized phone, it is designed to give up nothing.
-
-## See it
-
-| Chat | Settings |
-|:---:|:---:|
-| <img src="docs/ui/chat.png" width="250" alt="AEGIS chat" /> | <img src="docs/ui/settings.png" width="250" alt="AEGIS settings" /> |
 
 ## How it fits together
 
 ```mermaid
 flowchart LR
-    You["You (Flutter UI)"] -->|FFI| Core1["aegis-core (Rust crypto)"]
-    Core1 -->|"encrypted blob"| Relay[("aegis-relay")]
-    Relay -->|"encrypted blob"| Core2["aegis-core (Rust crypto)"]
-    Core2 -->|FFI| Peer["Contact (Flutter UI)"]
-    Relay -.->|"sees only ciphertext"| Note["no plaintext / no sender"]
+    subgraph A["📱 You"]
+      UA["Flutter UI"] -->|FFI| CA["aegis-core · Rust"]
+    end
+    R[("aegis-relay<br/>opaque blobs only")]
+    subgraph B["📱 Contact"]
+      CB["aegis-core · Rust"] -->|FFI| UB["Flutter UI"]
+    end
+    CA -->|"sealed blob"| R
+    R -->|"sealed blob"| CB
+    style R fill:#4F46E5,stroke:#312E81,color:#ffffff
 ```
 
-All cryptography lives in a **Rust core** (`aegis-core`); the Flutter app calls it over FFI. The **relay** only moves opaque, encrypted blobs — it never sees plaintext, and with sealed-sender it does not even learn who sent a message.
+All cryptography lives in a **Rust core** (`aegis-core`); the Flutter app calls it over FFI. The **relay** only moves opaque, encrypted blobs — it never sees plaintext, and with sealed-sender it does not even learn who sent a message. Your **contact code is just a 44-character mailbox id** — the heavy post-quantum key bundle is published to the relay, signed by your mailbox key so no one can impersonate you.
 
 ## 🔐 Cryptography we use
 
@@ -69,31 +92,32 @@ AEGIS does **not** invent primitives. It composes audited building blocks (RustC
 
 **Handshake — PQXDH:** a Signal X3DH secret **‖** an ML-KEM-1024 shared secret, merged via HKDF. Secure as long as *either* the classical *or* the post-quantum assumption holds.
 
-**Ratchet — continuous post-quantum:** every Double-Ratchet DH step mixes in a **fresh** ML-KEM-1024 secret → forward secrecy *and* post-compromise (self-healing) security, even against a quantum adversary.
+**Ratchet — continuous post-quantum:** every Double-Ratchet DH step mixes in a **fresh** ML-KEM-1024 secret → forward secrecy *and* post-compromise (self-healing) security, even against a quantum adversary. Text **and** media ride this same ratchet.
 
-**Identity — triple-hybrid signatures:** identity & pre-keys are signed with **Ed25519 ‖ ML-DSA-65 ‖ SLH-DSA** at once. Verification requires **all three** — forgery needs breaking classical *and* lattice *and* hash-based crypto simultaneously.
+**Identity — triple-hybrid signatures:** identity & pre-keys are signed with **Ed25519 ‖ ML-DSA-65 ‖ SLH-DSA** at once. Verification requires **all three** — forgery means breaking classical *and* lattice *and* hash-based crypto simultaneously.
 
 ## 🧨 We attacked it ourselves — hard
 
-Authorized adversarial testing against our own code and device. Highlights:
+Authorized adversarial testing against our own code and devices. Highlights:
 
-**Protocol attacks — all rejected:** identity-swap, ciphertext tamper, header tamper, replay, reorder-then-replay, forged signed-prekey, forged PQ-prekey, cross-session, malformed-wire, crafted-injection desync. *(11 protocol attacks + Google Wycheproof adversarial vectors.)*
+**Protocol attacks — all rejected:** identity-swap · ciphertext tamper · header tamper · replay · reorder-then-replay · forged signed-prekey · forged PQ-prekey · cross-session · malformed-wire · crafted-injection desync. *(11 protocol attacks + Google Wycheproof adversarial vectors.)*
 
 **Fuzzing & DoS:** **250,000+** hostile/garbage inputs to the wire / envelope / relay parsers → **zero panics, zero overflows** (length-bounded, cap-before-allocation, memory-safe Rust).
 
 **Live relay pentest (against the running server):**
+
 | Attack | Result |
 |---|---|
 | Malformed opcode | connection closed, relay alive |
 | 4 GiB length-prefix (OOM attempt) | rejected **before** allocation |
 | Drain someone else's mailbox with a forged signature (BOLA) | **0 bytes delivered** |
-| Truncated frames | no crash |
+| Substitute a victim's key bundle (impersonation) | **rejected** — bundles are owner-signed |
 | 1024-message flood per mailbox | bounded (excess dropped) |
 | 1100 concurrent connections | relay survived |
 
 **Device pentest:** non-debuggable release (`run-as` blocked) · no exported components · malicious-intent fuzz → no crash · 2000 monkey events → no ANR · no plaintext in logcat · **no hardcoded secrets** in the native library.
 
-**Standards audit:** mapped to **OWASP MASVS**; **MobSF** static scan (0 trackers, 0 secrets); **StrongBox** hardware key-backing confirmed on a real device; minSDK raised to the StrongBox API floor.
+**Standards audit:** mapped to **OWASP MASVS** · **MobSF** static scan (0 trackers, 0 secrets) · **StrongBox** hardware key-backing confirmed on a real device · minSDK raised to the StrongBox API floor.
 
 **Result:** the only real finding was a *LOW* clipboard-plaintext issue — **fixed**. No cryptographic weakness found.
 
@@ -107,22 +131,49 @@ Authorized adversarial testing against our own code and device. Highlights:
 
 ## 💬 Features
 
-Multiple chats & profiles · **photos & voice messages** (each AEAD-sealed) · emoji reactions · replies/quotes · in-chat search · disappearing messages · safety-number verification · **DE / EN / TR**.
+<div align="center">
+<table>
+<tr><td valign="top">
+
+🔒 **Real 2-device E2E** over the relay
+📷 **Photos & voice notes** — AEAD-sealed, same ratchet
+👥 Multiple chats & profiles
+⏱️ Disappearing messages
+
+</td><td valign="top">
+
+😀 Emoji reactions · replies / quotes
+🔎 In-chat search
+🔢 Safety-number verification (anti-MITM)
+🌍 **DE / EN / TR**
+
+</td></tr>
+</table>
+</div>
+
+<div align="center">
+<img src="docs/ui/chat.png" width="220" alt="chat" />&nbsp;&nbsp;
+<img src="docs/ui/contact-code.png" width="220" alt="add a real relay contact" />&nbsp;&nbsp;
+<img src="docs/ui/settings.png" width="220" alt="settings" />
+<br/><sub>Chat · adding a real contact (44-char code) · settings</sub>
+</div>
 
 ## ✅ Verified, honestly
 
-- **Crypto core:** **81** Rust tests green — RFC/FIPS KATs, Wycheproof, property tests, 250k+ fuzz, relay DoS.
-- **App:** **28** Flutter widget/unit tests green; built & run on a real device.
-- **Guaranteed:** E2E confidentiality + integrity, forward secrecy, post-compromise security, replay/MITM protection, quantum resistance on both axes.
-- **Best-effort / out of scope:** rooted/forensically-attacked devices · metadata vs. a network observer without a mixnet · **independent crypto audit + bug bounty (planned, not yet done)** · iOS.
+- **Crypto core:** **82** Rust tests green — RFC/FIPS KATs, Wycheproof, property tests, 250k+ fuzz, relay DoS & impersonation.
+- **App:** **28** Flutter widget/unit tests green; built & run on real devices.
+- **Live:** real **two-device** end-to-end messaging proven on two physical phones, both directions.
+- **Guaranteed:** E2E confidentiality + integrity · forward secrecy · post-compromise security · replay/MITM protection · quantum resistance on both axes.
+- **Best-effort / out of scope:** rooted or forensically-attacked devices · metadata vs. a network observer without a mixnet · **independent crypto audit + bug bounty (planned, not yet done)** · iOS.
 
 ## 🛠️ Tech stack
 
-**Rust** (crypto core + relay) · **Flutter** + `flutter_rust_bridge` (Android) · RustCrypto / dalek primitives · FIPS 203/204/205 PQC.
+**Rust** (crypto core + relay) · **Flutter** + `flutter_rust_bridge` (Android) · RustCrypto / dalek primitives · FIPS 203 / 204 / 205 PQC.
 
 ## 📈 Status & roadmap
 
-Working prototype (Android + Linux desktop). **Next:** independent crypto audit · encrypted persistence · media-over-relay transport · iOS · formal verification (Tamarin / ProVerif).
+Working prototype (Android + Linux desktop), with **real 2-device relay messaging proven live.**
+**Next:** independent crypto audit · encrypted persistence · iOS · formal verification (Tamarin / ProVerif).
 
 ## 📜 License & commercial use
 
@@ -133,5 +184,7 @@ To license, deploy, or build on AEGIS → **ozanks20@gmail.com** · see [`LICENS
 ---
 
 <div align="center">
-<sub>Built by <b>Ozan Küsmez</b> · ozanks20@gmail.com · #cryptography #post-quantum #e2ee #secure-messaging #rust #flutter</sub>
+<sub>Built by <b>Ozan Küsmez</b> · ozanks20@gmail.com</sub>
+<br/>
+<sub>#cryptography #postquantum #e2ee #securemessaging #mlkem #signalprotocol #rust #flutter #android #privacy #infosec</sub>
 </div>
