@@ -14,7 +14,7 @@
 <img src="https://img.shields.io/badge/FIPS-203%20%C2%B7%20204%20%C2%B7%20205-2BB6A3" alt="fips" />
 </p>
 <p>
-<img src="https://img.shields.io/badge/tests-82%20Rust%20%2B%2028%20Flutter-brightgreen" alt="tests" />
+<img src="https://img.shields.io/badge/tests-105%20Rust%20%2B%2028%20Flutter-brightgreen" alt="tests" />
 <img src="https://img.shields.io/badge/fuzz-250k%2B%20inputs%20%C2%B7%200%20panics-brightgreen" alt="fuzz" />
 <img src="https://img.shields.io/badge/Rust-000000?logo=rust&logoColor=white" alt="rust" />
 <img src="https://img.shields.io/badge/Flutter-02569B?logo=flutter&logoColor=white" alt="flutter" />
@@ -88,13 +88,18 @@ AEGIS does **not** invent primitives. It composes audited building blocks (RustC
 | Classical signature | **Ed25519** | RFC 8032 |
 | Hashing | **SHA-256/512, SHA-3 / SHAKE** | FIPS 180-4 / 202 |
 | Key derivation | **HKDF** | RFC 5869 |
-| Key hygiene | **zeroize-on-drop** (keys wiped from memory) | — |
+| At-rest key from PIN | **Argon2id** (memory-hard) | RFC 9106 |
+| Key hygiene | **zeroize-on-drop** + **mlock** (keys wiped from memory, locked against swap) | — |
 
 **Handshake — PQXDH:** a Signal X3DH secret **‖** an ML-KEM-1024 shared secret, merged via HKDF. Secure as long as *either* the classical *or* the post-quantum assumption holds.
 
 **Ratchet — continuous post-quantum:** every Double-Ratchet DH step mixes in a **fresh** ML-KEM-1024 secret → forward secrecy *and* post-compromise (self-healing) security, even against a quantum adversary. Text **and** media ride this same ratchet.
 
 **Identity — triple-hybrid signatures:** identity & pre-keys are signed with **Ed25519 ‖ ML-DSA-65 ‖ SLH-DSA** at once. Verification requires **all three** — forgery means breaking classical *and* lattice *and* hash-based crypto simultaneously.
+
+**Metadata — post-quantum sealed sender:** the sealed-sender layer that hides *who* sent each message is itself hybrid **X25519 ‖ ML-KEM-1024** with per-message forward secrecy — so the sender metadata is protected against a future quantum adversary too, not only the message body. The relay sees an opaque blob with no sender identity.
+
+**One-time prekeys:** every new conversation consumes a **real single-use prekey** the relay dispenses from your published pool (never reused, consumed once on receipt) — exactly as X3DH/PQXDH intends, so two contacts never share prekey material.
 
 ## 🧨 We attacked it ourselves — hard
 
@@ -127,7 +132,8 @@ Authorized adversarial testing against our own code and devices. Highlights:
 - **Amnesic by design** — chats live in **RAM only** (no chat database on disk); media bytes stay in memory and temp files are securely shredded; keys are zeroized on drop; optional **wipe-everything-on-leave**.
 - **Duress PIN** — entering it covertly wipes everything and shows an empty decoy account.
 - **FLAG_SECURE** — screenshots, screen-recording, and the app-switcher preview are blocked.
-- **Hardware-backed keys** — Android **StrongBox** (→ TEE fallback), biometric/PIN app-lock + auto-lock, no cloud backup.
+- **Hardware-backed keys** — Android **StrongBox** (→ TEE fallback), biometric/PIN app-lock + auto-lock, no cloud backup. Without a secure element, the at-rest key can instead be **derived from your PIN via Argon2id** (only a salt is stored; the key is re-derived on unlock, never written to disk).
+- **Swap-resistant secrets** — long-lived secret keys are **mlock**ed into RAM (best-effort) so they are not paged out to swap or hibernation.
 
 ## 💬 Features
 
@@ -160,10 +166,10 @@ Authorized adversarial testing against our own code and devices. Highlights:
 
 ## ✅ Verified, honestly
 
-- **Crypto core:** **82** Rust tests green — RFC/FIPS KATs, Wycheproof, property tests, 250k+ fuzz, relay DoS & impersonation.
+- **Crypto core:** **105** Rust tests green — RFC/FIPS KATs (incl. Argon2id RFC 9106), Wycheproof, adversarial tests, 250k+ fuzz, relay DoS & impersonation, one-time-prekey consumption, PQ-metadata tamper.
 - **App:** **28** Flutter widget/unit tests green; built & run on real devices.
 - **Live:** real **two-device** end-to-end messaging proven on two physical phones, both directions.
-- **Guaranteed:** E2E confidentiality + integrity · forward secrecy · post-compromise security · replay/MITM protection · quantum resistance on both axes.
+- **Guaranteed:** E2E confidentiality + integrity · forward secrecy · post-compromise security · replay/MITM protection · quantum resistance on **both axes + the sender-metadata layer**.
 - **Best-effort / out of scope:** rooted or forensically-attacked devices · metadata vs. a network observer without a mixnet · **independent crypto audit + bug bounty (planned, not yet done)** · iOS.
 
 ## 🛠️ Tech stack
@@ -172,8 +178,8 @@ Authorized adversarial testing against our own code and devices. Highlights:
 
 ## 📈 Status & roadmap
 
-Working prototype (Android + Linux desktop), with **real 2-device relay messaging proven live.**
-**Next:** independent crypto audit · encrypted persistence · iOS · formal verification (Tamarin / ProVerif).
+Working prototype (Android + Linux desktop), with **real 2-device relay messaging proven live.** The latest hardening — post-quantum sealed-sender metadata, one-time prekey pool, Argon2id at-rest key, and secret-`mlock` — is Rust/FFI-verified; a 2-device live re-test of the new wire format is the immediate next step.
+**Next:** 2-device re-test of the new wire · independent crypto audit · encrypted persistence (Argon2id-backed) · iOS · formal verification (Tamarin / ProVerif).
 
 ## 📜 License & commercial use
 
