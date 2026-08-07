@@ -61,7 +61,7 @@ What makes it different from "yet another secure messenger":
 
 Most “secure messengers” stop at content encryption. **Ultimate** is a harder product bar: the system is designed so that a realistic adversary — the relay, the network, a quantum harvest of ciphertext, a supply‑chain backdoor, **theft of one device**, or **coercion with one shown world** — gets **neither** the full account **nor** a proof that no further world exists. And every claimed success is either **publicly refutable** or ends **fail‑closed**.
 
-That is not marketing language for “military grade.” It is a single target architecture with four mandatory user promises. If any Ω is missing, the product is a prior grade (ASP / Hardened) — **not** Ultimate.
+That is not marketing language for “military grade.” It is a single target architecture with four mandatory user promises. If any Ω is missing, the product is a prior grade (ASP / Hardened) — **not** Ultimate. Full living Ultimate specification and audit-freeze package ship with the engineering tree under evaluation license.
 
 | Ω | User promise (plain language) | Engineering name | Client status |
 |---|---|---|:---:|
@@ -157,10 +157,6 @@ Ultimate **accepts** exactly these residual ends — marketing must never claim 
 |:---:|:---:|
 | <img src="docs/ui/chat.png" width="250" alt="AEGIS chat" /> | <img src="docs/ui/settings.png" width="250" alt="AEGIS settings" /> |
 
-| Contact / safety number | Two real devices |
-|:---:|:---:|
-| <img src="docs/ui/contact-code.png" width="250" alt="AEGIS contact code" /> | <img src="docs/ui/device-a.png" width="200" alt="Device A" />&nbsp;<img src="docs/ui/device-b.png" width="200" alt="Device B" /> |
-
 The UI is a **Flutter** Android client (Linux desktop path for development). Emulator smoke and the **Maestro** full UI suite (launch · settings · gaze · advanced TLS · save · new‑chat sheet · devices) last ran **green** on an `aegis_api34` AVD — crypto and threshold logic stay on unit tests, not on UI automation.
 
 ## 🧩 How it fits together
@@ -174,7 +170,7 @@ flowchart LR
     Relay -.->|"sees only ciphertext"| Note["🚫 no plaintext<br/>🚫 no sender id<br/>routed by mailbox key"]
 ```
 
-All cryptography lives in a **Rust core** (`aegis-core`, `#![forbid(unsafe_code)]`); the Flutter app calls it over FFI. The **relay** only moves opaque, encrypted blobs — it never sees plaintext, and it routes by an opaque recipient **mailbox key** (no sender field on the wire). Payload‑level **Sealed Sender** is wired into the app send path: the initial handshake *and* every ratchet message are wrapped in a sealed‑sender envelope, so the relay sees **neither** the sender identity **nor** the cleartext ratchet header. The sealed‑sender / metadata layer is itself **PQ‑hybrid** (X25519 ∥ ML‑KEM‑1024) with per‑message forward secrecy — so even metadata resists harvest‑now‑decrypt‑later. See [`docs/THREAT_MODEL.md`](docs/THREAT_MODEL.md).
+All cryptography lives in a **Rust core** (`aegis-core`, `#![forbid(unsafe_code)]`); the Flutter app calls it over FFI. The **relay** only moves opaque, encrypted blobs — it never sees plaintext, and it routes by an opaque recipient **mailbox key** (no sender field on the wire). Payload‑level **Sealed Sender** is wired into the app send path: the initial handshake *and* every ratchet message are wrapped in a sealed‑sender envelope, so the relay sees **neither** the sender identity **nor** the cleartext ratchet header. The sealed‑sender / metadata layer is itself **PQ‑hybrid** (X25519 ∥ ML‑KEM‑1024) with per‑message forward secrecy — so even metadata resists harvest‑now‑decrypt‑later.
 
 > **Honest limit:** sealed‑sender‑*class* designs are academically known to be statistically deanonymizable by a malicious server over a conversation (Martiny, Kaptchuk, Aviv, Roche & Wustrow, NDSS 2021). AEGIS narrows that attack surface — there are **no delivery receipts on the relay path** (the NDSS attack's main amplifier), and opt‑in **Tor (external Orbot or embedded)**, an opt‑in **Nym‑mixnet transport**, **always‑on cover traffic** and **mailbox‑queue rotation** raise the bar further. Full unlinkability against a determined relay or a *global* observer still depends on those opt‑in transports being enabled end‑to‑end — the mixnet in particular needs a running Nym client and both endpoints over it — so AEGIS treats metadata privacy as **defense‑in‑depth, not a guarantee**.
 
@@ -217,7 +213,7 @@ AEGIS does **not** invent primitives. It composes audited building blocks (RustC
 
 ## 🧮 Formally verified (machine‑checked)
 
-The headline differentiator. AEGIS's protocol composition is modelled in **ProVerif 2.05** (symbolic), **Tamarin 1.12** (ratchet), and **CryptoVerif 2.12** (computational), and the security goals are *proven*, not just asserted. Each model lives in [`docs/formal/`](docs/formal/) with its committed result, and the symbolic models run as a **reproducible regression gate** ([`scripts/run-proofs.sh`](scripts/run-proofs.sh) diffs every query outcome against a committed golden).
+The headline differentiator. AEGIS's protocol composition is modelled in **ProVerif 2.05** (symbolic), **Tamarin 1.12** (ratchet), and **CryptoVerif 2.12** (computational), and the security goals are *proven*, not just asserted. Each model ships with its committed result in the engineering tree, and the symbolic models run as a **reproducible regression gate** (proof runner diffs every query outcome against a committed golden).
 
 | Model | Tool | Property | Result |
 |---|---|---|:---:|
@@ -229,7 +225,7 @@ The headline differentiator. AEGIS's protocol composition is modelled in **ProVe
 | `cv-pqxdh-m2-combiner.cv` | **CryptoVerif** | **Combiner secrecy, computational** — `root` indistinguishable from random up to the *single honest HQC leg's* IND‑CCA2 advantage, with the ML‑KEM secret key *handed to the adversary* + non‑vacuity control | ✅ **PROVED** (control unprovable) |
 | `dr-m2-fs.spthy` | Tamarin | **Double‑Ratchet forward secrecy** (one‑way chain, bounded) | ✅ **VERIFIED** |
 
-Modelled exactly as the academic state of the art (Bhargavan–Jacomme–Kiefer–Schmidt, *PQXDH*, USENIX Security 2024; Cohn‑Gordon et al., *Signal*, EuroS&P 2017; Giacon–Heuer–Poettering, *KEM Combiners*, PKC 2018). The CryptoVerif combiner bound depends **only** on the HQC leg — proving the robust‑combiner theorem in the computational model; its **non‑vacuity control** (both KEM secrets leaked → root *not* provable) is wired into the gate and *must* flip, so the proof cannot be vacuous. Symbolic proofs hold under idealized primitives; the residual (full computational handshake, unbounded PCS) is stated honestly in [`docs/FORMAL_VERIFICATION_PLAN.md`](docs/FORMAL_VERIFICATION_PLAN.md).
+Modelled exactly as the academic state of the art (Bhargavan–Jacomme–Kiefer–Schmidt, *PQXDH*, USENIX Security 2024; Cohn‑Gordon et al., *Signal*, EuroS&P 2017; Giacon–Heuer–Poettering, *KEM Combiners*, PKC 2018). The CryptoVerif combiner bound depends **only** on the HQC leg — proving the robust‑combiner theorem in the computational model; its **non‑vacuity control** (both KEM secrets leaked → root *not* provable) is wired into the gate and *must* flip, so the proof cannot be vacuous. Symbolic proofs hold under idealized primitives; the residual (full computational handshake, unbounded PCS) is stated honestly in the formal-verification plan (engineering tree).
 
 ---
 
@@ -277,7 +273,7 @@ Authorized adversarial testing against our own code and device:
 
 Pasting a 44‑character key is the surest way to lose a non‑technical user. AEGIS lets you add a contact by typing **`@username`** or tapping a **share‑link** — **no phone number, no email, no contact upload** — without giving up the security model:
 
-- 🌳 **KT‑verified resolution.** A username resolves through the **same pinned Key‑Transparency directory** as every other key. The claim is **Ed25519‑signed under the mailbox** and **first‑claim‑wins**, so the relay cannot forge or repoint a name; the client checks signed **inclusion *and* absence** proofs. (Wire: relay opcodes `0x08` claim / `0x09` resolve; KT tags `0x22/0x23/0x24` — see [`docs/PROTOCOL_SPEC.md`](docs/PROTOCOL_SPEC.md).)
+- 🌳 **KT‑verified resolution.** A username resolves through the **same pinned Key‑Transparency directory** as every other key. The claim is **Ed25519‑signed under the mailbox** and **first‑claim‑wins**, so the relay cannot forge or repoint a name; the client checks signed **inclusion *and* absence** proofs. (Wire: relay opcodes `0x08` claim / `0x09` resolve; KT tags `0x22/0x23/0x24`.)
 - 🕸️ **The relay learns the minimum.** With an opt‑in **discovery mailbox**, the relay sees only that *a name exists and is being polled* — **not the conversation graph**. Discovery is opt‑in; the default stays amnesic.
 - 🔀 **Then it disappears.** After the first handshake both sides **migrate off the shared discovery mailbox onto ephemeral per‑contact mailboxes**, and **sealed sender** hides who initiated — so the durable handle is used once, not for every message.
 - 🔐 **Threshold‑aware at rest (Ultimate Ω1).** When split identity is enrolled, discovery no longer rests on a monodevice AEAD of the full identity: the client stores an **AETH** marker, and the discovery mailbox seed is sealed under wrap key **W** as **AEMS**. A disk image of the phone alone is an incomplete discovery identity.
@@ -338,9 +334,10 @@ Per‑axis position against the shipping field, cross‑checked **August 2026** 
 
 Gap‑closing continues on the formal, product, and operational tracks in parallel with Ultimate hardening.
 
+
 ## 🛠️ Tech stack
 
-**Rust** (crypto core + relay, `forbid(unsafe_code)`) · **Flutter** + `flutter_rust_bridge` (Android) · **ML Kit** on‑device face detection (gaze‑lock) · RustCrypto / dalek primitives · `libcrux` ML‑KEM · PQClean HQC · FIPS 203/204/205 PQC. Builds run under **WSL2** — see [`BUILD.md`](BUILD.md) and [`docs/adr/`](docs/adr/).
+**Rust** (crypto core + relay, `forbid(unsafe_code)`) · **Flutter** + `flutter_rust_bridge` (Android) · **ML Kit** on‑device face detection (gaze‑lock) · RustCrypto / dalek primitives · `libcrux` ML‑KEM · PQClean HQC · FIPS 203/204/205 PQC. Builds run under **WSL2**.
 
 ## 📈 Status & roadmap
 
@@ -380,6 +377,8 @@ AEGIS is **proprietary software — © 2026 Ozan Küsmez. All rights reserved.**
 **To license, deploy, or build on AEGIS → [ozanks20@gmail.com](mailto:ozanks20@gmail.com)** · full terms in [`LICENSE`](LICENSE).
 
 **NO WARRANTY.** The Software is provided “AS IS”. It is an **UNAUDITED** prototype and must not be relied upon for real high‑risk communication until an independent security audit has been completed.
+
+**Security honesty:** no independent external crypto audit yet — treat claims as vendor self‑reports. Metadata privacy is defense‑in‑depth, not a global‑observer guarantee. Residual ends R‑A6 / R‑A5∞ / R‑A10 / R‑GLOBAL remain explicit under Ultimate.
 
 ---
 
