@@ -157,6 +157,10 @@ Ultimate **accepts** exactly these residual ends — marketing must never claim 
 |:---:|:---:|
 | <img src="docs/ui/chat.png" width="250" alt="AEGIS chat" /> | <img src="docs/ui/settings.png" width="250" alt="AEGIS settings" /> |
 
+| Contact / safety number | Two real devices |
+|:---:|:---:|
+| <img src="docs/ui/contact-code.png" width="250" alt="AEGIS contact code" /> | <img src="docs/ui/device-a.png" width="200" alt="Device A" />&nbsp;<img src="docs/ui/device-b.png" width="200" alt="Device B" /> |
+
 The UI is a **Flutter** Android client (Linux desktop path for development). Emulator smoke and the **Maestro** full UI suite (launch · settings · gaze · advanced TLS · save · new‑chat sheet · devices) last ran **green** on an `aegis_api34` AVD — crypto and threshold logic stay on unit tests, not on UI automation.
 
 ## 🧩 How it fits together
