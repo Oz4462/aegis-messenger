@@ -6,7 +6,7 @@
 
 ### The post‑quantum, end‑to‑end encrypted messenger — engineered so that *only you and your contact* can ever read a message.
 
-**Ultimate client policy (Ω1–Ω4) · Phases 0–5 shipped · two internal audit rounds landed · August 2026**
+**Ultimate client policy (Ω1–Ω4) · Phases 0–5 implemented in development · two internal audit rounds landed · August 2026**
 
 <p>
 <img src="https://img.shields.io/badge/status-working%20prototype-orange" alt="status" />
@@ -16,13 +16,14 @@
 <img src="https://img.shields.io/badge/FIPS-203%20%C2%B7%20204%20%C2%B7%20205-2BB6A3" alt="fips" />
 <img src="https://img.shields.io/badge/formal-ProVerif%20%C2%B7%20Tamarin%20%C2%B7%20CryptoVerif-8B5CF6" alt="formal" />
 <img src="https://img.shields.io/badge/audit-2%20internal%20rounds-yellow" alt="audit" />
-<img src="https://img.shields.io/badge/tests-Rust%20%2B%20Flutter%20%2B%20Maestro-brightgreen" alt="tests" />
+<img src="https://img.shields.io/badge/tests-dated%20local%20snapshot-yellow" alt="tests: dated local snapshot" />
 </p>
 <p>
 <img src="https://img.shields.io/badge/Rust-000000?logo=rust&logoColor=white" alt="rust" />
 <img src="https://img.shields.io/badge/Flutter-02569B?logo=flutter&logoColor=white" alt="flutter" />
 <img src="https://img.shields.io/badge/platform-Android-3DDC84?logo=android&logoColor=white" alt="android" />
-<img src="https://img.shields.io/badge/unsafe-forbidden%20in%20crypto%20core-success" alt="forbid-unsafe" />
+<img src="https://img.shields.io/badge/unsafe-aegis--core%20%2B%20aegis--kt%3A%20forbidden-success" alt="unsafe forbidden in aegis-core and aegis-kt" />
+<img src="https://img.shields.io/badge/FFI%20unsafe%20baseline-118%20generated%20blocks%20%C2%B7%200%20handwritten%20%C2%B7%2020%20generated%20attrs-yellow" alt="FFI unsafe baseline: 118 generated blocks, 0 handwritten blocks, 20 generated attributes" />
 <img src="https://img.shields.io/badge/license-Apache%202.0-blue" alt="license" />
 </p>
 
@@ -34,6 +35,9 @@
 
 > [!NOTE]
 > **This public repository is the showcase surface** (this README, the license, UI assets). The engineering source is **not published here**; it lives in a private development tree. The project is licensed **Apache 2.0** — see [`LICENSE`](LICENSE). Evaluation, source access & commercial questions: **ozanks20@gmail.com**.
+
+> [!CAUTION]
+> **Release readiness — 2026-08-12: NOT launch-ready. There is no production release.** **RR4B** has locally verified focused hardening slices for durable full-wipe authority/recovery, shared at-rest key ownership, the PIN-change write-ahead transaction, crash-consistent threshold state, Ω2/world mutation serialization, Discovery/backup/roster/UGC lifecycle races, and group-secret zeroization. Those results live in an unmerged development worktree and do **not** establish a green release candidate. Final RR4B product integration and broad regression gates remain open — specifically PIN-backed cold-restart/unlock recovery and the Ω1 Settings/wipe boundary. **RR4C** remains launch-blocked on Device Link: local secondary-state application must commit atomically, and the secondary must return an authenticated `apply-committed` acknowledgement with transaction-ID reconciliation. GitHub Actions is also billing-blocked: engineering PR run **31586620932** failed before any steps ran and produced no job logs. It is therefore **not evidence of a code failure or a green CI run**, and this README makes no CI-green claim.
 
 
 ---
@@ -53,7 +57,7 @@ What makes it different from "yet another secure messenger":
 - 🧅 **Tor, mixnet & cover traffic (opt‑in)** — route every relay connection through Tor — an external **Orbot** *or* an in‑process **embedded Tor** that needs no Orbot — so the relay never sees your IP (`.onion` supported); optionally tunnel through the **Nym mixnet** (Sphinx packets reordered by independent mix nodes — the only one of these that resists a *global* observer); hide *when* you type behind an always‑on Poisson stream of decoys (Loopix); and **rotate mailbox queues** so the relay can't follow one address across a session. Decoys are padded into the same size buckets as real messages on **both** the 1:1 and the group path — until audit round 2 the production group path was unpadded, so a one‑byte decoy was distinguishable from a real message by envelope length alone, without any cryptanalysis. Fixed 2026‑08‑11.
 - 🏗️ **Reproducible builds** — the relay rebuilds **bit‑identical** in a digest‑pinned, self‑verifying container, demonstrated by a full double build. The signed append‑only log that release hashes would go into is **built and tested but has never logged a real release**: binary transparency is *prepared*, not yet *in operation*. See [Verified, honestly](#-verified-honestly).
 - 🙈 **Amnesic & anti‑forensic** — RAM‑only chats by default, duress PIN (and under Ultimate a **duress *world***), panic‑burn, gaze‑lock, screenshot block, hardware‑backed keys.
-- 🛡️ **AEGIS Ultimate (Ω1–Ω4)** — Split Identity · Multi‑World Memory · Blind Pipe · Continuous Proof. **Phases 0–5 client policy shipped** on the development mainline; see the full section below.
+- 🛡️ **AEGIS Ultimate (Ω1–Ω4)** — Split Identity · Multi‑World Memory · Blind Pipe · Continuous Proof. **Phases 0–5 client policy is implemented** on the development mainline; see the full section below.
 - 🚫 **No invented crypto** — audited classical primitives (RustCrypto / dalek) plus a **formally‑verified ML‑KEM** (`libcrux`, the implementation family Signal ships) and the vetted **PQClean** HQC reference, all validated against official FIPS/RFC/ACVP/NIST‑KAT vectors + Google Wycheproof + 250k+ fuzz.
 
 
@@ -67,14 +71,14 @@ That is not marketing language for "military grade." It is a single target archi
 
 | Ω | User promise (plain language) | Engineering name | Client status |
 |---|---|---|:---:|
-| **Ω1** | *Even with my phone in the enemy's hand, the account is not fully dead and not fully readable.* | **Split Identity** | ✅ **shipped** |
-| **Ω2** | *Under coercion I can show a world, and nobody can prove it is the only one.* | **Multi‑World Memory** | ✅ **shipped** |
-| **Ω3** | *The state / relay should not even see that I talk or with whom.* | **Blind Infrastructure** | ✅ **shipped** |
-| **Ω4** | *The world can prove it — not take my word.* | **Continuous Proof** | ✅ **shipped** |
+| **Ω1** | *Even with my phone in the enemy's hand, the account is not fully dead and not fully readable.* | **Split Identity** | ✅ **implemented** |
+| **Ω2** | *Under coercion I can show a world, and nobody can prove it is the only one.* | **Multi‑World Memory** | ✅ **implemented** |
+| **Ω3** | *The state / relay should not even see that I talk or with whom.* | **Blind Infrastructure** | ✅ **implemented** |
+| **Ω4** | *The world can prove it — not take my word.* | **Continuous Proof** | ✅ **implemented** |
 
 ### How Ultimate was built (Phases 0 → 5)
 
-Ultimate was not a single PR. It was shipped as a **documented phase ladder** on `main`, each phase with an exit gate:
+Ultimate was not a single PR. It was implemented as a **documented phase ladder** on the development mainline, each phase with an exit gate:
 
 | Phase | Focus | Primary Ω | What actually landed |
 |:---:|---|:---:|---|
@@ -182,7 +186,7 @@ Ultimate **accepts** exactly these residual ends — marketing must never claim 
 |:---:|:---:|
 | <img src="docs/ui/contact-code.png" width="250" alt="AEGIS contact code" /> | <img src="docs/ui/device-a.png" width="200" alt="Device A" />&nbsp;<img src="docs/ui/device-b.png" width="200" alt="Device B" /> |
 
-The UI is a **Flutter** Android client (Linux desktop path for development). Emulator smoke and the **Maestro** full UI suite (launch · settings · gaze · advanced TLS · save · new‑chat sheet · devices) last ran **green** on an `aegis_api34` AVD — crypto and threshold logic stay on unit tests, not on UI automation.
+The UI is a **Flutter** Android client (Linux desktop path for development). A dated local **2026-08-11** snapshot exercised emulator smoke and the **Maestro** UI flows for launch · settings · gaze · advanced TLS · save · new-chat · devices on an `aegis_api34` AVD. Crypto and threshold logic stay on unit tests, not UI automation.
 
 ## 🧩 How it fits together
 
@@ -195,7 +199,7 @@ flowchart LR
     Relay -.->|"sees only ciphertext"| Note["🚫 no plaintext<br/>🚫 no sender id<br/>routed by mailbox key"]
 ```
 
-All cryptography lives in a **Rust core** (`aegis-core`, `#![forbid(unsafe_code)]`); the Flutter app calls it over FFI. The **relay** only moves opaque, encrypted blobs — it never sees plaintext, and it routes by an opaque recipient **mailbox key** (no sender field on the wire). Payload‑level **Sealed Sender** is wired into the app send path: the initial handshake *and* every ratchet message are wrapped in a sealed‑sender envelope, so the relay sees **neither** the sender identity **nor** the cleartext ratchet header. The sealed‑sender / metadata layer is itself **PQ‑hybrid** (X25519 ∥ ML‑KEM‑1024) with per‑message forward secrecy — so even metadata resists harvest‑now‑decrypt‑later.
+The `aegis-core` and `aegis-kt` crates enforce `#![forbid(unsafe_code)]`. The relay and generated Flutter FFI boundary are tracked separately rather than being folded into a tree-wide claim. The reviewed bridge baseline contains **118 generated `unsafe` blocks, 0 handwritten `unsafe` blocks, and 20 generated `unsafe` attributes**. The **relay** only moves opaque, encrypted blobs — it never sees plaintext, and it routes by an opaque recipient **mailbox key** (no sender field on the wire). Payload‑level **Sealed Sender** is wired into the app send path: the initial handshake *and* every ratchet message are wrapped in a sealed‑sender envelope, so the relay sees **neither** the sender identity **nor** the cleartext ratchet header. The sealed‑sender / metadata layer is itself **PQ‑hybrid** (X25519 ∥ ML‑KEM‑1024) with per‑message forward secrecy — so even metadata resists harvest‑now‑decrypt‑later.
 
 > **Honest limit:** sealed‑sender‑*class* designs are academically known to be statistically deanonymizable by a malicious server over a conversation (Martiny, Kaptchuk, Aviv, Roche & Wustrow, NDSS 2021). AEGIS narrows that attack surface — there are **no delivery receipts on the relay path** (the NDSS attack's main amplifier), and opt‑in **Tor (external Orbot or embedded)**, an opt‑in **Nym‑mixnet transport**, **always‑on cover traffic** and **mailbox‑queue rotation** raise the bar further. Full unlinkability against a determined relay or a *global* observer still depends on those opt‑in transports being enabled end‑to‑end — the mixnet in particular needs a running Nym client and both endpoints over it — so AEGIS treats metadata privacy as **defense‑in‑depth, not a guarantee**.
 
@@ -228,7 +232,7 @@ AEGIS does **not** invent primitives. It composes audited building blocks (RustC
 
 **🪪 Identity — triple‑hybrid signatures:** identity & pre‑keys are signed with **Ed25519 ‖ ML‑DSA‑87 ‖ SLH‑DSA** at once. Verification requires **all three** — forgery needs breaking classical *and* lattice *and* hash‑based crypto simultaneously.
 
-**🧬 Crypto‑agility + a non‑lattice second axis (`SUITE_V3`):** the root derivation and the bundle/initial wire are version‑negotiated through a **suite registry**. `SUITE_V2` (X25519 ∥ ML‑KEM‑1024) is the shipped default; **`SUITE_V3` = X25519 ∥ ML‑KEM‑1024 ∥ HQC‑256** is wired end‑to‑end (real encap/decap in the handshake) behind the opt‑in `hqc` feature. The two post‑quantum legs rest on **disjoint hard problems** (module‑lattice vs. syndrome decoding of quasi‑cyclic codes), composed as a **robust KEM‑combiner** (Giacon–Heuer–Poettering, PKC 2018): the root stays pseudorandom while **either** ML‑KEM **or** HQC holds — so confidentiality survives even a *total* break of the lattice family. The HQC leg is validated bit‑exact against the **official NIST/PQClean round‑4 KAT** and its decapsulation is `catch_unwind`‑guarded against the HQC decode‑failure path. *Default build stays `[SUITE_V2]`, pure‑Rust and byte‑identical — HQC is not in the shipped APK unless the feature is enabled.*
+**🧬 Crypto‑agility + a non‑lattice second axis (`SUITE_V3`):** the root derivation and the bundle/initial wire are version‑negotiated through a **suite registry**. `SUITE_V2` (X25519 ∥ ML‑KEM‑1024) is the default development configuration; **`SUITE_V3` = X25519 ∥ ML‑KEM‑1024 ∥ HQC‑256** is wired end‑to‑end (real encap/decap in the handshake) behind the opt‑in `hqc` feature. The two post‑quantum legs rest on **disjoint hard problems** (module‑lattice vs. syndrome decoding of quasi‑cyclic codes), composed as a **robust KEM‑combiner** (Giacon–Heuer–Poettering, PKC 2018): the root stays pseudorandom while **either** ML‑KEM **or** HQC holds — so confidentiality survives even a *total* break of the lattice family. The HQC leg is validated bit‑exact against the **official NIST/PQClean round‑4 KAT** and its decapsulation is `catch_unwind`‑guarded against the HQC decode‑failure path. *Default builds stay `[SUITE_V2]`, pure‑Rust and byte‑identical; HQC is absent from APK build artifacts unless the feature is enabled.*
 
 **🛡️ Downgrade resistance:** the negotiated suite id and both advertised capability lists are **bound into the transcript / root** for the v3 path; a message‑level downgrade is rejected fail‑fast. The remaining bundle‑strip vector (a relay stripping the responder's unsigned advertised list) is closed by an **EDHOC SUITES_I "always‑send‑I"** mechanism — the initiator always carries its real capability list and it is **bound into the root**, so a strip *or* a truncation of that list makes the two sides derive divergent roots (fail‑closed). This is built and proven (see below) behind an opt‑in `strict_downgrade` feature; enabling it by default trades v2 wire byte‑compatibility (a deliberate owner decision). Grounded in RFC 8446 §4.1.3, RFC 9528 (EDHOC) and Bhargavan et al. 2016.
 
@@ -282,7 +286,7 @@ Authorized adversarial testing against our own code and device:
 
 ### Internal audit rounds 1 & 2 (August 2026) — what they actually found
 
-Two full internal audit rounds, run as adversarial passes against our own tree, after the freeze tag. Summarised honestly, including the parts that reflect badly on us:
+Two internal audit rounds were run as adversarial passes against the development tree after the freeze tag. The findings below are a **dated August 2026 snapshot**, not an external audit or a current all-clear. Later RR4B release-readiness review found additional lifecycle and atomicity defects that are still being closed; RR4C Device-Link commit/acknowledgement blockers also remain. The dated findings are summarised honestly, including the parts that reflect badly on us:
 
 **The cryptography held.** Round 1 examined the primitives, the PQXDH handshake, the hybrid ratchet and the MLS provider and found **no exploitable cryptographic weakness**. Round 2 did not re‑audit them.
 
@@ -300,7 +304,7 @@ Two full internal audit rounds, run as adversarial passes against our own tree, 
 
 **Not fixed, stated plainly:** device label and platform still travel in the clear in the pairing init message, which cannot be sealed without a new primitive · CI is dispatch‑only and cannot be re‑armed until the account's GitHub Actions billing is restored · no published release verification anchor exists, and there are 0 releases and 0 provenance runs.
 
-> **Result:** **no cryptographic weakness found** — no protocol break and no broken primitive. Every finding above was an implementation bug or an unbacked claim in the surrounding machinery — **all fixed and regression‑tested**, except the three named above as open.
+> **Audit-round result:** **no cryptographic weakness was found in those two internal rounds** — no protocol break and no broken primitive. Their findings were implementation bugs or unbacked claims in the surrounding machinery. That dated result is not a launch verdict: the release-readiness block above names later RR4B/RR4C work that remains open.
 
 ---
 
@@ -346,20 +350,16 @@ Pasting a 44‑character key is the surest way to lose a non‑technical user. A
 
 ## ✅ Verified, honestly
 
-All numbers below were **re‑measured on `main`, 2026‑08‑11**, after both internal audit rounds landed. Each figure is a count from an actual run, not carried forward from an earlier README revision — the previous numbers had drifted badly (this README quoted Flutter as "164+" against an actual 856).
+The last broad local measurement was taken on **2026-08-11** after the two internal audit rounds. It covered the Rust workspace, detached Rust/FFI workspaces, Flutter tests, opt-in feature builds, formal-model regressions, and Maestro emulator flows. Those results are a **dated local snapshot**, not a current aggregate, not a release qualification, and not CI evidence; absolute suite counts have been removed because the development tree has continued to change.
 
-- **🦀 Rust — 353 tests green** in the root workspace, 0 failures:
-  - `aegis-core` **222** — RFC/FIPS KATs (incl. a cross‑impl libcrux≡RustCrypto≡NIST ML‑KEM KAT), Wycheproof vectors, adversarial unit tests, the protocol‑v2 hardening (key‑committing AEAD, domain‑separated combiner, signed‑Merkle OPK pools), the encrypted‑backup envelope, the **crypto‑agility suite registry**, and 250k+ fuzz.
-  - `aegis-relay` **59** (DoS / BOLA / flood / KT‑restart / per‑mailbox submit budget / bundle de‑registration) · `aegis-kt` **67** (Merkle proofs, golden root, equivocation, rollback/fork monitor, tamper rejection) · `aegis-memlock` **5**. 222 + 59 + 67 + 5 = **353**, matching the workspace run exactly.
-  - ⚠️ **A green workspace run is not a green tree.** Three Cargo workspaces are **detached** from the root and must be run separately — the MLS/RFC 9420 groups crate (**35**), the whole Dart↔Rust FFI layer (**43**), and 20 fuzz targets. Detached workspaces have hidden real defects in this repo more than once. We say so rather than quoting one number.
-  - **Opt‑in feature builds gate their own code so it cannot bit‑rot:** `--features hqc` → **236** (**+14**: real HQC‑256 encap/decap, the ML‑KEM∥HQC combiner, the **external NIST/PQClean HQC KAT**, and the full v3 handshake over the wire) · relay `--features tls` → **67** (**+8**: rustls + cert‑pin transport, incl. a test that boots the real compiled binary). All default‑OFF to keep the reproducible build pure‑Rust.
-  - **Non‑vacuity is proven, not assumed:** the two downgrade‑closure tests were verified by **mutation** — disabling the always‑send‑I wire emit turns the bundle‑strip test **RED**; disabling the v2‑root binding turns the truncation test **RED**; restoring makes both **GREEN** again.
-- **📱 Flutter — 856 tests green, 0 failing**, plus **77** FFI‑tagged tests that exercise the real compiled Rust library rather than a stand‑in (those 77 are exactly the 17 suites the default run skips, because they need the compiled library present). **933 passing tests across both runs.** ⚠️ **The 77 run in no CI workflow** — only via an optional local pre‑commit hook. Combined with CI being dispatch‑only, the tests that touch real cryptography may not have run automatically for weeks. The suite covers `@username` discovery‑identity store + inbound‑mailbox hardening, the contact‑link / `aegis://` parser, embedded‑Tor proxy precedence + fail‑closed invariant, encrypted‑backup round‑trip, device roster & revocation effects, **plus the Ultimate modules** — profile dial gate, threshold / split identity, multi‑world + world‑store AEAD, continuous‑proof gate.
-- **🎬 Maestro UI suite** — declarative flows for smoke launch, settings, gaze, advanced TLS, settings‑save, home new‑chat sheet, devices, and a full orchestrator flow. Last full run on emulator **`aegis_api34`**: **green** (crypto stays on unit tests; UI proves the screens still open and save).
+- **🦀 Rust and FFI** — the dated local pass exercised standards vectors, adversarial protocol cases, relay/KT behavior, detached workspaces, and opt-in HQC/TLS builds. Detached workspaces remain separate gates; one green workspace does not establish a green tree.
+- **📱 Flutter** — the dated local pass included ordinary widget/unit coverage and separate FFI-tagged suites against the compiled Rust library. The FFI suites were local-only and are not evidence of an automated CI gate.
+- **🎬 Maestro UI suite** — the dated emulator pass covered launch, settings, gaze, advanced TLS, settings-save, new-chat, devices, and the orchestrated UI flow. UI automation proves those flows execute; it does not validate cryptography.
+- **Mutation controls** — downgrade-closure controls were checked by deliberately disabling the relevant bindings and observing the expected failures before restoring them.
 - **📡 Live 2‑device `@name` chat — proven end‑to‑end on real hardware** (Xiaomi ↔ Samsung): typing a username resolves it under the pinned KT directory, handshakes, and migrates to ephemeral mailboxes. Confidentiality was checked on the wire — a known plaintext was sent + received while a `tcpdump` capture of the relay port recorded **1 418 packets / ~24 KB relayed with 0 plaintext matches** (exact / case‑insensitive / token / strings) — the relay carries ciphertext only.
 - **🧮 Formal — 11 machine‑checked models** (9 ProVerif + 1 CryptoVerif + 1 Tamarin) **+ 6 falsification / anti‑vacuity controls** (5 ProVerif + 1 CryptoVerif), pinned by a runner that diffs every query outcome against a committed golden. Re‑checked 2026‑08‑11: the Tamarin model in full (all 4 lemmas verified) and a 3‑of‑14 sample of the ProVerif models, each byte‑identical to its golden. The CryptoVerif proof was **not** re‑run in that pass — it is the heavy one; that leaves it unverified on the day, not disputed.
-- **🏷️ Audit freeze** — annotated tag **`audit-freeze-2026-08-07`** packaged the Ultimate client surface for external engagement. **This is a freeze for auditors, not a signed audit report** — and 65 commits have landed on `main` since, so the freeze no longer describes the current mainline.
-- **🔒 Guaranteed (design intent — self‑reported until external audit):** E2E confidentiality + integrity · forward secrecy · post‑compromise security · replay/MITM protection · quantum resistance on both axes (with a *disjoint* non‑lattice confidentiality backup once `hqc` is enabled) · relay accountability on served keys (KT + client self‑audit for fork/rollback/re‑key) · bit‑identical rebuilds of the relay artifact · Ultimate fail‑closed dial and high‑value traffic gates when the profile is on · multi‑world sealed stores when enrolled · a release‑log verify/monitor CLI, **built and tested but with no real release logged yet — nothing to verify against in practice**.
+- **🏷️ Audit freeze** — annotated tag **`audit-freeze-2026-08-07`** packaged an earlier Ultimate client surface for external engagement. **This is a freeze for auditors, not a signed audit report**, and it no longer describes the changing development mainline.
+- **🔒 Security goals (design intent — self‑reported until external audit):** E2E confidentiality + integrity · forward secrecy · post‑compromise security · replay/MITM protection · quantum resistance on both axes (with a *disjoint* non‑lattice confidentiality backup once `hqc` is enabled) · relay accountability on served keys (KT + client self‑audit for fork/rollback/re‑key) · bit‑identical rebuilds of the relay artifact · Ultimate fail‑closed dial and high‑value traffic gates when the profile is on · multi‑world sealed stores when enrolled · a release‑log verify/monitor CLI, **built and tested but with no real release logged yet — nothing to verify against in practice**.
 - **⚠️ Best‑effort / out of scope / residual ends:** rooted/forensically‑attacked devices (**R‑A6**) · total coercion of human+all factors+all worlds (**R‑A5∞**) · flash forensics after crypto‑erase (**R‑A10**) · a *global* network observer without mix‑class transport (**R‑GLOBAL**) · public third‑party KT monitors not yet universally hosted · **independent crypto audit + bug bounty (planned, not yet done)** · **device revocation is enforced sender‑side only — no relay‑side or key‑side backstop** · groups productization (foundational crate exists) · iOS polish · a production multi‑region hosted relay as default SaaS · publicly hosted release‑log CDN URL.
 
 ## 🧭 Where AEGIS honestly stands (August 2026)
@@ -370,10 +370,10 @@ Per‑axis position against the shipping field, cross‑checked **August 2026** 
 |---|---|
 | PQ **identity** authentication (triple‑hybrid incl. hash‑based SLH‑DSA hedge) | **Ahead — genuinely unique.** No production messenger ships PQ signatures on identity today. Honest caveat: this is the *least* quantum‑urgent axis (forgery needs a quantum computer *at signing time*; harvest‑now‑decrypt‑later does not apply to signatures). |
 | PQ **confidentiality** + continuous PQ ratchet | **At parity, not ahead** for the ML‑KEM ratchet (Signal SPQR/Triple Ratchet, Apple PQ3 ship the same class — with computational proofs and better ratchet bandwidth). **A disjoint second axis (code‑based HQC‑256) is wired** behind a flag — that *specific* "survive a total lattice break" hedge is unusual in shipping messengers. |
-| **Crypto‑agility, downgrade resistance & non‑lattice hedge** | **Unusual.** A versioned suite registry negotiates ML‑KEM vs. ML‑KEM ∥ HQC‑256 with the suite ids + both advertised capability lists **bound into the transcript**; an opt‑in EDHOC‑SUITES_I "always‑send‑I" path closes the bundle‑strip downgrade with a root binding that *also* defeats list‑truncation (proven by mutation). Honest caveat: both are opt‑in (default‑off) until the v2‑deprecation decision, so the shipped build is ML‑KEM‑only on the confidentiality axis. |
+| **Crypto‑agility, downgrade resistance & non‑lattice hedge** | **Unusual.** A versioned suite registry negotiates ML‑KEM vs. ML‑KEM ∥ HQC‑256 with the suite ids + both advertised capability lists **bound into the transcript**; an opt‑in EDHOC‑SUITES_I "always‑send‑I" path closes the bundle‑strip downgrade with a root binding that *also* defeats list‑truncation (proven by mutation). Honest caveat: both are opt‑in (default-off) until the v2-deprecation decision, so the default development build is ML‑KEM-only on the confidentiality axis. |
 | Key Transparency with client self‑audit | **Ahead of most** (WhatsApp‑class; SimpleX/Briar don't have it). Gossip/third‑party monitors still missing. |
 | Formal proof maturity | **Mixed‑strong.** Symbolic (ProVerif/Tamarin) + a **computational CryptoVerif combiner proof**; forward secrecy still bounded. PQ3 has Tamarin over unbounded loops *plus* a full computational handshake proof. Residual: unbounded PCS + full CryptoVerif handshake. |
-| **Ultimate client posture (Ω1–Ω4)** | **Shipped as client policy (Phases 0–5).** Split identity, multi‑world sealed stores, blind‑pipe fail‑closed dial, continuous‑proof gate. No major consumer messenger ships this *combined* possession/coercion/pipe/proof stack. Honest caveat: residuals R‑A6 / R‑A5∞ / R‑A10 / R‑GLOBAL remain **explicit**; public CDN host + external firm sign‑off are still open. |
+| **Ultimate client posture (Ω1–Ω4)** | **Implemented as development client policy (Phases 0–5), not released.** Split identity, multi‑world sealed stores, blind‑pipe fail‑closed dial, continuous‑proof gate. No major consumer messenger combines this possession/coercion/pipe/proof design. Honest caveat: residuals R‑A6 / R‑A5∞ / R‑A10 / R‑GLOBAL remain **explicit**; public CDN host + external firm sign‑off are still open. |
 | Independent audit | **Behind every named competitor** — they are all independently audited; AEGIS is not yet. Two *internal* adversarial rounds are not a substitute. Until a firm signs a report, treat all claims as vendor self‑reports. |
 | Metadata in production | **Behind SimpleX/Briar** (no‑identifier design / Tor‑P2P by construction) *unless* Ultimate + mix‑class path is on end‑to‑end. AEGIS: sealed‑sender class (known weak per NDSS 2021) + Tor (external/embedded) + Nym + cover + mailbox rotation + Ultimate **hard‑require** of the blind pipe — still defense‑in‑depth, not by‑construction anonymity. |
 | Continuous integration | **Behind the field, and we say so.** Workflows are dispatch‑only and currently blocked by account billing; the numbers in this README are locally measured, not gate‑enforced. |
@@ -384,11 +384,11 @@ Gap‑closing continues on the formal, product, and operational tracks in parall
 
 ## 🛠️ Tech stack
 
-**Rust** (crypto core + relay, `forbid(unsafe_code)`) · **Flutter** + `flutter_rust_bridge` (Android) · **ML Kit** on‑device face detection (gaze‑lock) · RustCrypto / dalek primitives · `libcrux` ML‑KEM · PQClean HQC · FIPS 203/204/205 PQC.
+**Rust** (`aegis-core` + `aegis-kt` with `forbid(unsafe_code)`; relay and generated FFI bridge tracked separately) · **Flutter** + `flutter_rust_bridge` (Android) · **ML Kit** on‑device face detection (gaze‑lock) · RustCrypto / dalek primitives · `libcrux` ML‑KEM · PQClean HQC · FIPS 203/204/205 PQC.
 
 ## 📈 Status & roadmap
 
-**Working prototype (Android + Linux desktop)** shipping today:
+**Working prototype (Android + Linux desktop), not a production release:**
 
 - handshake & continuous PQ ratchet **formally modelled**
 - media‑over‑relay (chunked AEAD)
@@ -399,13 +399,13 @@ Gap‑closing continues on the formal, product, and operational tracks in parall
 - **offline delivery** (background mailbox drain + unread badges)
 - ML‑KEM on a **formally‑verified** implementation family
 - **AEGIS Ultimate Phases 0–5 client policy** (Ω1–Ω4) on the development mainline
-- Maestro full UI suite green on emulator
+- dated local Maestro emulator coverage
 
 **Protocol v2 hardening complete:** key‑committing transport AEAD · domain‑separated hybrid‑signature combiner · signed PQ one‑time prekeys (machine‑checked in ProVerif).
 
-**Crypto‑agility + a second confidentiality axis — wired (opt‑in):** a versioned **suite registry** with **`SUITE_V3` = X25519 ∥ ML‑KEM‑1024 ∥ HQC‑256** is live behind the default‑OFF `hqc` feature — real HQC‑256 encap/decap in the handshake, the ML‑KEM∥HQC combiner, **external NIST/PQClean KAT conformance**, and the full v3 handshake e2e over the wire, with the combiner secrecy proven symbolically (ProVerif) *and* computationally (CryptoVerif). The bundle‑strip downgrade residual is closed by the **EDHOC‑SUITES_I `strict_downgrade`** mechanism (built + mutation‑proven; default‑off because turning it on deprecates the v2 wire — an owner decision). The default shipped build stays `[SUITE_V2]`, pure‑Rust and byte‑identical.
+**Crypto‑agility + a second confidentiality axis — wired (opt‑in):** a versioned **suite registry** with **`SUITE_V3` = X25519 ∥ ML‑KEM‑1024 ∥ HQC‑256** is live behind the default‑OFF `hqc` feature — real HQC‑256 encap/decap in the handshake, the ML‑KEM∥HQC combiner, **external NIST/PQClean KAT conformance**, and the full v3 handshake e2e over the wire, with the combiner secrecy proven symbolically (ProVerif) *and* computationally (CryptoVerif). The bundle‑strip downgrade residual is closed by the **EDHOC‑SUITES_I `strict_downgrade`** mechanism (built + mutation‑proven; default‑off because turning it on deprecates the v2 wire — an owner decision). The default development build stays `[SUITE_V2]`, pure‑Rust and byte‑identical.
 
-**Open, stated plainly:** publish a release verification anchor and log a first real release · restore GitHub Actions billing and re‑arm CI · prove delivery behaviour toward a revoked device on live devices · a network‑wide protocol‑epoch fan‑out revoke · seal device label/platform in the pairing init · SE soft on desktop · declare residual ends in the UI everywhere.
+**Open, stated plainly:** land and broadly re-verify the remaining RR4B integration — especially PIN-backed cold-restart/unlock truth and the Ω1 Settings/wipe boundary · make Device Link secondary application locally atomic · add an authenticated secondary `apply-committed` acknowledgement with transaction-ID reconciliation · publish a release verification anchor and log a first real release · restore GitHub Actions billing and re-arm CI · prove delivery behaviour toward a revoked device on live devices · a network-wide protocol-epoch fan-out revoke · seal device label/platform in the pairing init · SE soft on desktop · declare residual ends in the UI everywhere.
 
 **Next (product + formal + ops):** release keystore + SLSA/sigstore provenance · **independent crypto audit + bug bounty** · metadata/anonymity to full strength (mixnet path over *both* endpoints · on‑device runtime of the embedded‑Tor build · background cover while suspended) · ProVerif model of the downgrade closure · unbounded‑PCS proof (Tamarin) + full CryptoVerif handshake · groups productization (MLS/TreeKEM) · multi‑device polish · **iOS** · a production‑hosted relay + public KT monitors.
 
