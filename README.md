@@ -26,7 +26,6 @@
 <img src="https://img.shields.io/badge/license-Apache%202.0-blue" alt="license" />
 </p>
 
-<sub><code>unsafe-forbidden</code> covers <code>aegis-core</code> / <code>aegis-kt</code> only. The Dart↔Rust FFI bridge carries <b>95 generated</b> <code>unsafe</code> blocks and <b>0 handwritten</b> ones, pinned in a committed baseline that fails the build if the count moves.</sub>
 
 </div>
 
@@ -36,8 +35,6 @@
 > [!NOTE]
 > **This public repository is the showcase surface** (this README, the license, UI assets). The engineering source is **not published here**; it lives in a private development tree. The project is licensed **Apache 2.0** — see [`LICENSE`](LICENSE). Evaluation, source access & commercial questions: **ozanks20@gmail.com**.
 
-> [!IMPORTANT]
-> **The badges above are not backed by a running CI gate.** All numbers in this README were re‑measured **locally on `main`, 2026‑08‑11**, after both internal audit rounds landed — they are not continuously re‑verified. The repository's GitHub Actions workflows are dispatch‑only, and a manual run on 2026‑08‑11 was refused in 12 seconds for account billing reasons before any job started. **Restoring CI is an account action, not a code change** — and arming it today would only paint every push red with a payment error.
 
 ---
 
