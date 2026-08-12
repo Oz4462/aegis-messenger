@@ -36,8 +36,7 @@
 > [!NOTE]
 > **This public repository is the showcase surface** (this README, the license, UI assets). The engineering source is **not published here**; it lives in a private development tree. The project is licensed **Apache 2.0** — see [`LICENSE`](LICENSE). Evaluation, source access & commercial questions: **ozanks20@gmail.com**.
 
-> [!CAUTION]
-> **Release readiness — 2026-08-12: NOT launch-ready. There is no production release.** **RR4B** has locally verified focused hardening slices for durable full-wipe authority/recovery, shared at-rest key ownership, the PIN-change write-ahead transaction, crash-consistent threshold state, Ω2/world mutation serialization, Discovery/backup/roster/UGC lifecycle races, and group-secret zeroization. Those results live in an unmerged development worktree and do **not** establish a green release candidate. Final RR4B product integration and broad regression gates remain open — specifically PIN-backed cold-restart/unlock recovery and the Ω1 Settings/wipe boundary. **RR4C** remains launch-blocked on Device Link: local secondary-state application must commit atomically, and the secondary must return an authenticated `apply-committed` acknowledgement with transaction-ID reconciliation. GitHub Actions is also billing-blocked: engineering PR run **31586620932** failed before any steps ran and produced no job logs. It is therefore **not evidence of a code failure or a green CI run**, and this README makes no CI-green claim.
+> https://github.com/Oz4462/aegis-messenger
 
 
 ---
